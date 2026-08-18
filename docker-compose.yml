@@ -1,0 +1,48 @@
+services:
+  backend:
+    image: "node:24-alpine"
+    container_name: "quick-desk-backend"
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    working_dir: "/app"
+    volumes:
+      - ./quick-desk-backend:/app
+      - backend_node_modules:/app/node_modules
+    env_file:
+      - .env
+    command: sh -c "npm install && npx prisma generate && npx prisma migrate deploy && npm run start"
+    depends_on:
+      - postgres
+  
+  frontend:
+    image: "node:24-alpine"
+    container_name: "quick-desk-frontend"
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    working_dir: "/app"
+    volumes:
+      - ./quick-desk-frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - VITE_BACKEND_URL=${BACKEND_API_URL}
+      - VITE_FRONTEND_PORT=${FRONTEND_PORT}
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - backend
+
+  postgres:
+    image: "postgres:17-alpine"
+    container_name: "quick-desk-postgres"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  frontend_node_modules:
+  backend_node_modules:

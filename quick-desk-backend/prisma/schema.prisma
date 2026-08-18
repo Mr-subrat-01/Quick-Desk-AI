@@ -1,0 +1,61 @@
+// Prisma schema for QuickDesk
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(uuid())
+  firstName String
+  lastName String
+  role String @default("EMPLOYEE")
+  email String @unique
+  password String
+  createdAt DateTime @default(now())
+  employeeTickets Ticket[]   @relation("EmployeeTickets")
+  agentTickets    Ticket[]   @relation("AgentTickets")
+  auditLogs       AuditLog[]
+  @@map("users")
+}
+
+model Ticket {
+  id String @id @default(uuid())
+  title String
+  description String
+  status String @default("PENDING")
+  aiPriority String?
+  aiCategory String?
+  aiDraftReply String?
+  category String?
+  priority String?
+  reply String?
+  attachments String[]
+  agentId String?
+  employeeId String
+  citations String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  employee User @relation("EmployeeTickets", fields: [employeeId], references: [id])
+  agent    User? @relation("AgentTickets", fields: [agentId], references: [id])
+  auditLogs AuditLog[]
+  @@map("tickets")
+}
+
+
+model AuditLog {
+  id String @id @default(uuid())
+  ticketId String
+  agentId String
+  field String
+  oldValue String?
+  newValue String?
+  createdAt DateTime @default(now())
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  agent  User   @relation(fields: [agentId], references: [id])
+  @@map("audit_logs")
+}
