@@ -20,14 +20,32 @@ model User {
   employeeTickets Ticket[]   @relation("EmployeeTickets")
   agentTickets    Ticket[]   @relation("AgentTickets")
   auditLogs       AuditLog[]
+  refreshTokens   RefreshToken[]
+
   @@map("users")
 }
+
+model RefreshToken {
+  id String @id @default(uuid())
+  token String @unique
+  userId String
+  userAgent String?
+  ipAddress String?
+  isRevoked Boolean @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("refresh_tokens")
+}
+
 
 model Ticket {
   id String @id @default(uuid())
   title String
   description String
-  status String @default("PENDING")
+  status String @default("OPEN")
   aiPriority String?
   aiCategory String?
   aiDraftReply String?
@@ -43,6 +61,7 @@ model Ticket {
   employee User @relation("EmployeeTickets", fields: [employeeId], references: [id])
   agent    User? @relation("AgentTickets", fields: [agentId], references: [id])
   auditLogs AuditLog[]
+
   @@map("tickets")
 }
 
@@ -57,5 +76,7 @@ model AuditLog {
   createdAt DateTime @default(now())
   ticket Ticket @relation(fields: [ticketId], references: [id])
   agent  User   @relation(fields: [agentId], references: [id])
+  
   @@map("audit_logs")
 }
+
