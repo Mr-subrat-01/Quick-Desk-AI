@@ -44,14 +44,15 @@ export function Navbar({ user, onLogout }: NavbarProps) {
 
           {user && (
             <nav className="hidden md:flex items-center gap-4 text-xs font-medium text-muted-foreground">
-              {user.role === 'AGENT' ? (
-                <Link href="/agent/dashboard" className="hover:text-primary transition-colors">
-                  Agent Dashboard
-                </Link>
-              ) : (
-                <Link href="/employee/tickets" className="hover:text-primary transition-colors">
-                  My Tickets
-                </Link>
+              {user.role === 'AGENT' && (
+                <>
+                  <Link href="/agent/dashboard" className="hover:text-primary transition-colors">
+                    Agent Dashboard
+                  </Link>
+                  <Link href="/agent/metrics" className="hover:text-primary transition-colors">
+                    Metrics Dashboard
+                  </Link>
+                </>
               )}
             </nav>
           )}
