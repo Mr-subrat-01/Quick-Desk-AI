@@ -187,10 +187,9 @@ export default function SessionsPage() {
                         <AlertDialogTrigger
                           render={
                             <Button
-                              variant="outline"
+                              variant="destructive"
                               size="sm"
                               disabled={actionLoading}
-                              className="text-xs border-border hover:bg-destructive/10 hover:text-destructive"
                             >
                               Revoke
                             </Button>

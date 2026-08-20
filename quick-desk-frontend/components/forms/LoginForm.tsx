@@ -80,7 +80,7 @@ export function LoginForm() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold py-2.5 rounded-lg shadow-md transition-all"
+            className="w-full"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
