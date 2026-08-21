@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTicketDto } from './dtos/create-ticket.dto';
 import { ResolveTicketDto } from './dtos/resolve-ticket.dto';
@@ -7,71 +7,82 @@ import { TicketCategory } from 'src/common/enums/ticket-category.enum';
 import { TicketPriority } from 'src/common/enums/ticket-priority.enum';
 import { isValidFilterParam } from 'src/common/helpers/filter.helper';
 import { Prisma, Ticket } from '@prisma/client';
+import { GeminiService } from 'src/ai/gemini/gemini.service';
+import { TicketGateway } from './ticket.gateway';
 
 @Injectable()
 export class TicketService {
-    constructor(private readonly prisma: PrismaService) { }
+    private readonly logger = new Logger(TicketService.name);
+    constructor(private readonly prisma: PrismaService,
+        private readonly geminiService: GeminiService,
+        private readonly ticketGateway: TicketGateway
+    ) { }
 
     async getAllTicketsForEmployee(
         employeeId: string,
-        take: number = 10,
-        lastSeenId?: string,
+        page: number = 1,
+        limit: number = 10,
         status?: string,
         orderBy: 'asc' | 'desc' = 'desc',
     ) {
+        const skip = (page - 1) * limit;
+        const take = limit;
+
         const where: Prisma.TicketWhereInput = {
             employeeId,
             ...(isValidFilterParam(status) && { status: status.toUpperCase() as TicketStatus }),
         };
 
-        const tickets = await this.prisma.ticket.findMany({
-            where,
-            take: take + 1,
-            ...(lastSeenId && {
-                cursor: { id: lastSeenId },
-                skip: 1,
-            }),
-            orderBy: [{ createdAt: orderBy }],
-            select: {
-                id: true,
-                title: true,
-                description: true,
-                status: true,
-                priority: true,
-                category: true,
-                reply: true,
-                attachments: true,
-                createdAt: true,
-                updatedAt: true,
-                agent: {
-                    select: {
-                        firstName: true,
+        const [tickets, total] = await Promise.all([
+            this.prisma.ticket.findMany({
+                where,
+                skip,
+                take,
+                orderBy: [{ createdAt: orderBy }],
+                select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    status: true,
+                    priority: true,
+                    category: true,
+                    reply: true,
+                    attachments: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    agent: {
+                        select: {
+                            firstName: true,
+                        },
                     },
                 },
-            },
-        });
-
-        const hasNextPage = tickets.length > take;
-        if (hasNextPage) tickets.pop();
-
-        const lastTicket = tickets.length > 0 ? tickets[tickets.length - 1] : null;
+            }),
+            this.prisma.ticket.count({ where }),
+        ]);
 
         return {
             tickets,
-            hasNextPage,
-            nextCursor: hasNextPage && lastTicket ? lastTicket.id : null,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            hasNextPage: page * limit < total,
+            hasPreviousPage: page > 1,
         };
     }
 
     async getAllTicketsForAgents(
-        take: number = 10,
-        lastSeenId?: string,
+        page: number = 1,
+        limit: number = 10,
         status?: string,
         category?: string,
         priority?: string,
         search?: string,
         orderBy: 'asc' | 'desc' = 'desc',
     ) {
+        const skip = (page - 1) * limit;
+        const take = limit;
+
         const where: Prisma.TicketWhereInput = {
             ...(isValidFilterParam(status) && { status: status.toUpperCase() as TicketStatus }),
             ...(isValidFilterParam(category) && { category: category.toUpperCase() as TicketCategory }),
@@ -81,53 +92,52 @@ export class TicketService {
             }),
         };
 
-        const tickets = await this.prisma.ticket.findMany({
-            where,
-            take: take + 1,
-            ...(lastSeenId && {
-                cursor: { id: lastSeenId },
-                skip: 1,
+        const [tickets, total] = await Promise.all([
+            this.prisma.ticket.findMany({
+                where,
+                skip,
+                take,
+                orderBy: [{ createdAt: orderBy }],
+                select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    status: true,
+                    priority: true,
+                    category: true,
+                    aiPriority: true,
+                    aiCategory: true,
+                    aiDraftReply: true,
+                    citations: true,
+                    reply: true,
+                    attachments: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    agent: {
+                        select: {
+                            firstName: true,
+                        },
+                    },
+                    employee: {
+                        select: {
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                        },
+                    },
+                },
             }),
-            orderBy: [{ createdAt: orderBy }],
-            select: {
-                id: true,
-                title: true,
-                description: true,
-                status: true,
-                priority: true,
-                category: true,
-                aiPriority: true,
-                aiCategory: true,
-                aiDraftReply: true,
-                citations: true,
-                reply: true,
-                attachments: true,
-                createdAt: true,
-                updatedAt: true,
-                agent: {
-                    select: {
-                        firstName: true,
-                    },
-                },
-                employee: {
-                    select: {
-                        firstName: true,
-                        lastName: true,
-                        email: true,
-                    },
-                },
-            },
-        });
-
-        const hasNextPage = tickets.length > take;
-        if (hasNextPage) tickets.pop();
-
-        const lastTicket = tickets.length > 0 ? tickets[tickets.length - 1] : null;
+            this.prisma.ticket.count({ where }),
+        ]);
 
         return {
             tickets,
-            hasNextPage,
-            nextCursor: hasNextPage && lastTicket ? lastTicket.id : null,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            hasNextPage: page * limit < total,
+            hasPreviousPage: page > 1,
         };
     }
 
@@ -199,7 +209,7 @@ export class TicketService {
         return ticket;
     }
     async createTicket(employeeId: string, dto: CreateTicketDto) {
-        await this.prisma.ticket.create({
+        const ticket = await this.prisma.ticket.create({
             data: {
                 title: dto.title,
                 description: dto.description,
@@ -207,10 +217,12 @@ export class TicketService {
                 employeeId,
             }
         });
+        this.processTicketAI(ticket.id, ticket.title, ticket.description);
+        return ticket;
     }
 
-    async resolveTicket(agentId: string, ticketId: string, dto: ResolveTicketDto) {
-        return this.prisma.$transaction(async (tx) => {
+    async resolveTicket(agentId: string, ticketId: string, dto: ResolveTicketDto, exceptSocketId?: string) {
+        const updateTicketRecord = await this.prisma.$transaction(async (tx) => {
             const tickets = await tx.$queryRaw<Ticket[]>`
             select * from tickets where id=${ticketId} for update`;
             const ticket = tickets[0];
@@ -229,11 +241,12 @@ export class TicketService {
                     status: TicketStatus.RESOLVED,
                     category: dto.category,
                     priority: dto.priority,
-                    reply: dto.reply
+                    reply: dto.reply,
+                    resolvedAt: new Date()
                 }
             });
             const auditTicketLOgs: Prisma.AuditLogCreateManyInput[] = [];
-            if (ticket.aiCategory !== dto.category) {
+            if (ticket.aiCategory && (ticket.aiCategory  !== dto.category)) {
                 auditTicketLOgs.push({
                     ticketId,
                     agentId,
@@ -242,7 +255,7 @@ export class TicketService {
                     newValue: dto.category
                 });
             }
-            if (ticket.aiPriority !== dto.priority) {
+            if (ticket.aiPriority && (ticket.aiPriority !== dto.priority)) {
                 auditTicketLOgs.push({
                     ticketId,
                     agentId,
@@ -251,7 +264,7 @@ export class TicketService {
                     newValue: dto.priority
                 });
             }
-            if (ticket.aiDraftReply !== dto.reply) {
+            if (ticket.aiDraftReply && (ticket.aiDraftReply !== dto.reply)) {
                 auditTicketLOgs.push({
                     ticketId,
                     agentId,
@@ -267,5 +280,32 @@ export class TicketService {
             }
             return updateTicket;
         });
+        const payload = {
+            ticketId: updateTicketRecord.id,
+            title: updateTicketRecord.title,
+            category: updateTicketRecord.category,
+            priority: updateTicketRecord.priority,
+        };
+        this.ticketGateway.emitToEmploye('ticket:resolved',payload,updateTicketRecord.employeeId);
+        this.ticketGateway.emitToAgents('ticket:resolved',payload,exceptSocketId);
+        return updateTicketRecord;
+    }
+
+    private async processTicketAI(ticketId: string, title: string, description: string) {
+        try {
+            const { category, priority } = await this.geminiService.analyzeTicket(title, description);
+            this.logger.log(`Ticket ${ticketId} processed with AI. Category: ${category}, Priority: ${priority}`);
+            await this.prisma.ticket.update({
+                where: { id: ticketId },
+                data: {
+                    aiCategory: category,
+                    aiPriority: priority,
+                },
+            });
+        } catch (error) {
+            this.logger.error(`Failed to process ticket ${ticketId} with AI`, error);
+        } finally {
+            this.ticketGateway.emitToAgents('ticket:raised', { ticketId, title });
+        }
     }
 }

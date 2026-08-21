@@ -12,10 +12,15 @@ export default function LoginPage() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    if (localStorage.getItem('is_logged_in') === 'false') {
+      setChecking(false);
+      return;
+    }
+
     AuthService.getProfile()
       .then((user) => {
         if (user) {
-          const target = user.role === 'AGENT' ? '/agent/dashboard' : '/employee/tickets';
+          const target = user.role === 'AGENT' ? '/agent' : '/employee';
           router.replace(target);
         } else {
           setChecking(false);

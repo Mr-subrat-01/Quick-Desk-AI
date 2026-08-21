@@ -37,8 +37,8 @@ export interface Ticket {
 }
 
 export interface GetTicketsQueryParams {
-  take?: number;
-  lastSeenId?: string;
+  page?: number;
+  limit?: number;
   status?: string;
   category?: string;
   priority?: string;
@@ -48,8 +48,12 @@ export interface GetTicketsQueryParams {
 
 export interface GetTicketsResponse {
   tickets: Ticket[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
   hasNextPage: boolean;
-  nextCursor: string | null;
+  hasPreviousPage: boolean;
 }
 
 export interface CreateTicketPayload {

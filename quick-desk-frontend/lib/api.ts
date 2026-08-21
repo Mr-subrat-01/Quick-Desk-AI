@@ -43,14 +43,24 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}, retr
           credentials: 'include',
           headers,
         });
+      } else {
+        setAccessToken(null);
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login';
+        }
       }
     } catch {
+      console.log(`Refresh Token Failed and set access token to null `);
       setAccessToken(null);
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
   }
 
   const data = await response.json();
   if (!response.ok) {
+    console.log(`API request failed: ${endpoint} | ${retryOn401} | ${data?.message} | ${response.status} | ${response.statusText}`);
     throw new Error(data.message || 'API request failed');
   }
 

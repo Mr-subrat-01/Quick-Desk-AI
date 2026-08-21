@@ -95,9 +95,9 @@ export function CreateTicketModal({ isOpen, onClose, onSuccess }: CreateTicketMo
               <Plus className="w-5 h-5" />
             </div>
             <div>
-              <SheetTitle className="text-lg font-bold text-white">Rise New Ticket</SheetTitle>
+              <SheetTitle className="text-lg font-bold text-white">Raise New Ticket</SheetTitle>
               <SheetDescription className="text-xs text-slate-400">
-                Rise an ticket for our support team to resolve.
+                Raise an ticket for our support team to resolve.
               </SheetDescription>
             </div>
           </div>
@@ -204,7 +204,7 @@ export function CreateTicketModal({ isOpen, onClose, onSuccess }: CreateTicketMo
                   <Loader size="sm" /> Submitting...
                 </>
               ) : (
-                'Rise Ticket'
+                'Raise Ticket'
               )}
             </Button>
           </SheetFooter>

@@ -9,7 +9,7 @@ const roboto = Roboto({ subsets: ['latin'], variable: '--font-sans' });
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'QuickDesk AI - AI-Assisted Helpdesk',
+  title: 'QuickDesk - AI-Assisted Helpdesk',
   description: 'Internal LLM-assisted support ticketing platform for enterprise employees and agents.',
 };
 

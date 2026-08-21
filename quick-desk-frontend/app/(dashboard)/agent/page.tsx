@@ -9,22 +9,23 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { ResolveTicketModal } from '@/components/tickets/resolve-ticket-modal';
+import { useRouter } from 'next/navigation';
 import { Loader } from '@/components/common/Loader';
 import { getPriorityBadgeClass, getStatusBadgeClass } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useDebounce } from '@/hooks/use-debounce';
+import { socket } from '@/lib/socket';
 import {
   Search,
-  Clock,
-  CheckCircle2,
   Bot,
   User,
-  Inbox,
   RotateCcw,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 export default function AgentDashboardPage() {
+  const router = useRouter();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
@@ -32,12 +33,12 @@ export default function AgentDashboardPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const debouncedSearch = useDebounce(searchQuery, 400);
 
+  const [page, setPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalTickets, setTotalTickets] = useState<number>(0);
   const [hasNextPage, setHasNextPage] = useState<boolean>(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasPreviousPage, setHasPreviousPage] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
   const fetchTickets = useCallback(
     async (
@@ -45,30 +46,28 @@ export default function AgentDashboardPage() {
       category: string,
       priority: string,
       search: string,
-      cursor?: string | null,
+      pageNum: number = 1,
     ) => {
       try {
         const res = await TicketService.getTickets({
-          take: 10,
+          limit: 10,
           status: status || undefined,
           category: category || undefined,
           priority: priority || undefined,
           search: search || undefined,
-          lastSeenId: cursor || undefined,
+          page: pageNum,
         });
 
-        if (cursor) {
-          setTickets((prev) => [...prev, ...res.tickets]);
-        } else {
-          setTickets(res.tickets);
-        }
+        setTickets(res.tickets);
+        setTotalTickets(res.total);
+        setTotalPages(res.totalPages);
+        setPage(res.page);
         setHasNextPage(res.hasNextPage);
-        setNextCursor(res.nextCursor);
+        setHasPreviousPage(res.hasPreviousPage);
       } catch (err: any) {
         toast.error(err.message || 'Failed to fetch tickets');
       } finally {
         setIsLoading(false);
-        setIsLoadingMore(false);
       }
     },
     [],
@@ -76,28 +75,84 @@ export default function AgentDashboardPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    setNextCursor(null);
-    fetchTickets(statusFilter, categoryFilter, priorityFilter, debouncedSearch, null);
+    fetchTickets(statusFilter, categoryFilter, priorityFilter, debouncedSearch, 1);
   }, [statusFilter, categoryFilter, priorityFilter, debouncedSearch, fetchTickets]);
+
+  useEffect(() => {
+    socket.emit('join:agents');
+
+    const handleTicketRaised = (data: { ticketId: string; title: string }) => {
+      toast.info('New Ticket Raised', {
+        description: <span>Ticket <b className="font-semibold text-slate-100">{data.title}</b> was raised.</span>,
+      });
+
+      if (page !== 1) return;
+      if (categoryFilter || priorityFilter) return;
+
+      const matchesFilters = !statusFilter || statusFilter === 'OPEN';
+      if (!matchesFilters) return;
+
+      fetchTickets(statusFilter, categoryFilter, priorityFilter, debouncedSearch, 1);
+    };
+
+    const handleTicketResolved = (data: { ticketId: string; title: string; category: string; priority: string }) => {
+      const matchesFilters =
+        (!statusFilter || 'RESOLVED' === statusFilter) &&
+        (!categoryFilter || data.category === categoryFilter) &&
+        (!priorityFilter || data.priority === priorityFilter);
+
+      setTickets((prevTickets) => {
+        const ticketToUpdate = prevTickets.find((t) => t.id === data.ticketId);
+        if (!ticketToUpdate) return prevTickets;
+
+        if (matchesFilters) {
+          return prevTickets.map((t) =>
+            t.id === data.ticketId
+              ? {
+                  ...t,
+                  status: 'RESOLVED' as any,
+                  category: data.category as any,
+                  priority: data.priority as any,
+                }
+              : t
+          );
+        } else {
+          setTotalTickets((prevTotal) => Math.max(0, prevTotal - 1));
+          return prevTickets.filter((t) => t.id !== data.ticketId);
+        }
+      });
+    };
+
+    socket.on('ticket:raised', handleTicketRaised);
+    socket.on('ticket:resolved', handleTicketResolved);
+
+    return () => {
+      socket.off('ticket:raised', handleTicketRaised);
+      socket.off('ticket:resolved', handleTicketResolved);
+    };
+  }, [statusFilter, categoryFilter, priorityFilter, debouncedSearch, fetchTickets, page]);
 
   const handleResetFilters = () => {
     setStatusFilter('');
     setCategoryFilter('');
     setPriorityFilter('');
     setSearchQuery('');
-    setNextCursor(null);
+    setPage(1);
   };
 
-  const handleLoadMore = () => {
-    if (!nextCursor || isLoadingMore) return;
-    setIsLoadingMore(true);
-    fetchTickets(statusFilter, categoryFilter, priorityFilter, searchQuery, nextCursor);
+  const handlePageChange = (pageNum: number) => {
+    if (pageNum < 1 || pageNum > totalPages || isLoading) return;
+    setIsLoading(true);
+    fetchTickets(statusFilter, categoryFilter, priorityFilter, debouncedSearch, pageNum);
   };
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-800 pb-5">
-        <h1 className="text-xl font-bold text-white">Agent Dashboard</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+        <div>
+          <h1 className="text-xl font-bold text-white">Agent Dashboard</h1>
+          <p className="text-xs text-slate-400 mt-1">Total tickets: {totalTickets}</p>
+        </div>
       </div>
 
       <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-3">
@@ -109,7 +164,10 @@ export default function AgentDashboardPage() {
               <Input
                 placeholder="Search by ticket title..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="bg-slate-950/60 border-slate-800 focus:border-indigo-500 pl-9 text-slate-200 placeholder:text-slate-500 text-xs h-9"
               />
             </div>
@@ -117,7 +175,10 @@ export default function AgentDashboardPage() {
 
           <div className="w-full sm:w-36 space-y-1">
             <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider px-0.5">Status</Label>
-            <Select value={statusFilter || 'ALL'} onValueChange={(val) => setStatusFilter(!val || val === 'ALL' ? '' : val)}>
+            <Select value={statusFilter || 'ALL'} onValueChange={(val) => {
+              setStatusFilter(!val || val === 'ALL' ? '' : val);
+              setPage(1);
+            }}>
               <SelectTrigger className="w-full bg-slate-950/60 border-slate-800 text-slate-300 text-xs h-9">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
@@ -134,7 +195,10 @@ export default function AgentDashboardPage() {
 
           <div className="w-full sm:w-36 space-y-1">
             <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider px-0.5">Category</Label>
-            <Select value={categoryFilter || 'ALL'} onValueChange={(val) => setCategoryFilter(!val || val === 'ALL' ? '' : val)}>
+            <Select value={categoryFilter || 'ALL'} onValueChange={(val) => {
+              setCategoryFilter(!val || val === 'ALL' ? '' : val);
+              setPage(1);
+            }}>
               <SelectTrigger className="w-full bg-slate-950/60 border-slate-800 text-slate-300 text-xs h-9">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
@@ -154,7 +218,10 @@ export default function AgentDashboardPage() {
 
           <div className="w-full sm:w-36 space-y-1">
             <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider px-0.5">Priority</Label>
-            <Select value={priorityFilter || 'ALL'} onValueChange={(val) => setPriorityFilter(!val || val === 'ALL' ? '' : val)}>
+            <Select value={priorityFilter || 'ALL'} onValueChange={(val) => {
+              setPriorityFilter(!val || val === 'ALL' ? '' : val);
+              setPage(1);
+            }}>
               <SelectTrigger className="w-full bg-slate-950/60 border-slate-800 text-slate-300 text-xs h-9">
                 <SelectValue placeholder="All Priorities" />
               </SelectTrigger>
@@ -189,7 +256,6 @@ export default function AgentDashboardPage() {
         </div>
       ) : tickets.length === 0 ? (
         <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-12 text-center space-y-3">
-          <Inbox className="w-12 h-12 text-slate-600 mx-auto" />
           <h3 className="text-base font-semibold text-slate-300">No tickets found</h3>
         </div>
       ) : (
@@ -206,11 +272,6 @@ export default function AgentDashboardPage() {
                   <CardHeader className="space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <Badge className={getStatusBadgeClass(ticket.status)}>
-                        {isResolved ? (
-                          <CheckCircle2 className="w-3 h-3 mr-1 inline" />
-                        ) : (
-                          <Clock className="w-3 h-3 mr-1 inline" />
-                        )}
                         {ticket.status}
                       </Badge>
 
@@ -264,7 +325,7 @@ export default function AgentDashboardPage() {
                     <Button
                       size="sm"
                       variant={isResolved ? 'secondary' : 'default'}
-                      onClick={() => setSelectedTicket(ticket)}
+                      onClick={() => router.push(`/agent/${ticket.id}`)}
                     >
                       {isResolved ? 'View' : 'Resolve'}
                     </Button>
@@ -274,35 +335,34 @@ export default function AgentDashboardPage() {
             })}
           </div>
 
-          {hasNextPage && (
-            <div className="pt-4 text-center">
-              <Button
-                onClick={handleLoadMore}
-                disabled={isLoadingMore}
-                variant="outline"
-                size="sm"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <Loader size="sm" /> Loading Queue...
-                  </>
-                ) : (
-                  'Load More Tickets'
-                )}
-              </Button>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-800/60 pt-4 flex-wrap gap-4">
+              <span className="text-xs text-slate-400 flex items-center gap-1">
+                Showing page <span className="font-semibold text-slate-200">{page}</span> of{' '}
+                <span className="font-semibold text-slate-200">{totalPages}</span> ({totalTickets} tickets total)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={!hasPreviousPage}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                </Button>
+                <Button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={!hasNextPage}
+                  variant="outline"
+                  size="sm"
+                >
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
             </div>
           )}
         </div>
       )}
-
-      <ResolveTicketModal
-        ticket={selectedTicket}
-        onClose={() => setSelectedTicket(null)}
-        onSuccess={() => {
-          setNextCursor(null);
-          fetchTickets(statusFilter, categoryFilter, priorityFilter, searchQuery, null);
-        }}
-      />
     </div>
   );
 }

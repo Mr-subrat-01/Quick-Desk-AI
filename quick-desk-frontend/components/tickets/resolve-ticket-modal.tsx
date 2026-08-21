@@ -63,7 +63,7 @@ export function ResolveTicketModal({ ticket, onClose, onSuccess }: ResolveTicket
     setIsLoading(true);
     try {
       const res = await TicketService.resolveTicket(ticket.id, { category, priority, reply });
-      toast.success((res as any)?.message || 'Ticket resolved successfully!');
+      toast.success((res as any)?.message);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -94,7 +94,7 @@ export function ResolveTicketModal({ ticket, onClose, onSuccess }: ResolveTicket
         </SheetHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 overflow-y-auto p-6 space-y-5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-700/60 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <div className="flex-1 overflow-y-auto px-6 space-y-5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-700/60 [&::-webkit-scrollbar-thumb]:rounded-full">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Employee Description</Label>
               <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5 text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
@@ -282,7 +282,7 @@ export function ResolveTicketModal({ ticket, onClose, onSuccess }: ResolveTicket
                       <Loader size="sm" /> Resolving...
                     </>
                   ) : (
-                    'Submit Resolution'
+                    'Send Reply'
                   )}
                 </Button>
               </>

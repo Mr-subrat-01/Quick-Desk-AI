@@ -27,9 +27,9 @@ export function LoginForm() {
       const user = res?.data?.user;
       if (user) {
         if (user.role === 'AGENT') {
-          router.push('/agent/dashboard');
+          router.push('/agent');
         } else {
-          router.push('/employee/tickets');
+          router.push('/employee');
         }
       }
     } catch (err: any) {
@@ -42,10 +42,8 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md bg-card text-card-foreground border-border shadow-2xl">
       <CardHeader className="space-y-2 text-center pb-6">
-        <div className="mx-auto w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-lg mb-2">
-          QD
-        </div>
-        <CardTitle className="text-2xl font-bold text-foreground">QuickDesk AI</CardTitle>
+        <img src="/logo.png" alt="QuickDesk Logo" className="mx-auto w-12 h-12 object-contain rounded-xl shadow-lg mb-2" />
+        <CardTitle className="text-2xl font-bold text-foreground">QuickDesk</CardTitle>
         <CardDescription className="text-muted-foreground">Sign in to your account</CardDescription>
       </CardHeader>
 

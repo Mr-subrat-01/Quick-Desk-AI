@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Navbar } from '@/components/common/Navbar';
 import { FullPageLoader } from '@/components/common/Loader';
+import { socket } from '@/lib/socket';
 
 export default function DashboardLayout({
   children,
@@ -16,29 +17,34 @@ export default function DashboardLayout({
   const { user, loading, logout } = useAuth();
 
   useEffect(() => {
-    if (!loading && user) {
-      if (pathname.startsWith('/agent') && user.role !== 'AGENT') {
-        router.replace('/employee/tickets');
-      } else if (pathname.startsWith('/employee') && user.role !== 'EMPLOYEE') {
-        router.replace('/agent/dashboard');
+    if (user) {
+      if (!socket.connected) {
+        socket.connect();
       }
     }
-  }, [user, loading, pathname, router]);
+    return () => {
+      socket.disconnect();
+    };
+  }, [user]);
 
-  if (loading) {
+  const isWrongRole = user && (
+    (pathname.startsWith('/agent') && user.role !== 'AGENT') ||
+    (pathname.startsWith('/employee') && user.role !== 'EMPLOYEE')
+  );
+
+  useEffect(() => {
+    if (isWrongRole) {
+      const correctPath = user.role === 'AGENT' ? '/agent' : '/employee';
+      router.replace(correctPath);
+    }
+  }, [isWrongRole, user?.role, router]);
+
+  if (loading || isWrongRole) {
     return <FullPageLoader />;
   }
 
   if (!user) {
     return null;
-  }
-
-  const isUnauthorized =
-    (pathname.startsWith('/agent') && user.role !== 'AGENT') ||
-    (pathname.startsWith('/employee') && user.role !== 'EMPLOYEE');
-
-  if (isUnauthorized) {
-    return <FullPageLoader />;
   }
 
   return (

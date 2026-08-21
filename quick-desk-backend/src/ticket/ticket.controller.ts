@@ -3,6 +3,7 @@ import {
   Controller,
   DefaultValuePipe,
   Get,
+  Headers,
   Param,
   ParseIntPipe,
   Patch,
@@ -32,7 +33,7 @@ export class TicketController {
   ) {
     const ticket = await this.ticketService.createTicket(employeeId, dto);
     return {
-      message: 'Ticket rised successfully',
+      message: 'Ticket raised successfully',
       ticket,
     };
   }
@@ -40,8 +41,8 @@ export class TicketController {
   @Get()
   async getAllTickets(
     @CurrentUser() user: { id: string; role: string },
-    @Query('take', new DefaultValuePipe(10), ParseIntPipe) take: number,
-    @Query('lastSeenId') lastSeenId?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('status') status?: string,
     @Query('category') category?: string,
     @Query('priority') priority?: string,
@@ -51,15 +52,15 @@ export class TicketController {
     if (user.role === UserRole.EMPLOYEE) {
       return this.ticketService.getAllTicketsForEmployee(
         user.id,
-        take,
-        lastSeenId,
+        page,
+        limit,
         status,
         orderBy,
       );
     }
     return this.ticketService.getAllTicketsForAgents(
-      take,
-      lastSeenId,
+      page,
+      limit,
       status,
       category,
       priority,
@@ -81,9 +82,10 @@ export class TicketController {
   async resolveTicket(
     @Param('id') id: string,
     @CurrentUser('id') agentId: string,
+    @Headers('x-socket-id') socketId: string,
     @Body() dto: ResolveTicketDto,
   ) {
-    const ticket = await this.ticketService.resolveTicket(agentId, id, dto);
+    const ticket = await this.ticketService.resolveTicket(agentId, id, dto, socketId);
     return {
       message: 'Ticket resolved successfully',
       ticket,

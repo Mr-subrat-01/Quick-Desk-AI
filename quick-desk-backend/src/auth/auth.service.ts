@@ -40,7 +40,7 @@ export class AuthService {
     }
 
     const payload = { id: user.id, sub: user.id, email: user.email, role: user.role };
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+    const accessToken = this.jwtService.sign(payload);
 
     const refreshTokenString = randomBytes(32).toString('hex');
     const expiresAt = new Date();
@@ -99,7 +99,7 @@ export class AuthService {
 
     const user = tokenRecord.user;
     const payload = { id: user.id, sub: user.id, email: user.email, role: user.role };
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+    const accessToken = this.jwtService.sign(payload);
 
     return {
       accessToken,

@@ -1,4 +1,4 @@
-# QuickDesk AI
+# QuickDesk
 
 AI-assisted internal helpdesk platform for support agents and employees built for the QuickDesk coding assessment.
 
