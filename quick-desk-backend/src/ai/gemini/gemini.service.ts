@@ -15,7 +15,7 @@ export class GeminiService implements OnModuleInit {
     ) {}
     onModuleInit() {
         this.ai = new GoogleGenAI();
-        this.model = this.configService.get<string>('GEMINI_MODEL')!;
+        this.model = this.configService.get<string>('GEMINI_CHAT_MODEL')!;
     }
     async analyzeTicket(title: string, description: string) {
         const response = await this.ai.models.generateContent({

@@ -9,13 +9,15 @@ import { isValidFilterParam } from 'src/common/helpers/filter.helper';
 import { Prisma, Ticket } from '@prisma/client';
 import { GeminiService } from 'src/ai/gemini/gemini.service';
 import { TicketGateway } from './ticket.gateway';
+import { RagService } from 'src/ai/rag/rag.service';
 
 @Injectable()
 export class TicketService {
     private readonly logger = new Logger(TicketService.name);
     constructor(private readonly prisma: PrismaService,
         private readonly geminiService: GeminiService,
-        private readonly ticketGateway: TicketGateway
+        private readonly ticketGateway: TicketGateway,
+        private readonly ragService: RagService
     ) { }
 
     async getAllTicketsForEmployee(
@@ -246,7 +248,7 @@ export class TicketService {
                 }
             });
             const auditTicketLOgs: Prisma.AuditLogCreateManyInput[] = [];
-            if (ticket.aiCategory && (ticket.aiCategory  !== dto.category)) {
+            if (ticket.aiCategory && (ticket.aiCategory !== dto.category)) {
                 auditTicketLOgs.push({
                     ticketId,
                     agentId,
@@ -286,22 +288,79 @@ export class TicketService {
             category: updateTicketRecord.category,
             priority: updateTicketRecord.priority,
         };
-        this.ticketGateway.emitToEmploye('ticket:resolved',payload,updateTicketRecord.employeeId);
-        this.ticketGateway.emitToAgents('ticket:resolved',payload,exceptSocketId);
+        this.ticketGateway.emitToEmploye('ticket:resolved', payload, updateTicketRecord.employeeId);
+        this.ticketGateway.emitToAgents('ticket:resolved', payload, exceptSocketId);
         return updateTicketRecord;
     }
 
+    async getTicketMetrics() {
+        const [ticketsByStatus, ticketsByCategory, resolvedTickets] = await Promise.all([
+            this.prisma.ticket.groupBy({
+                by: "status",
+                _count: {
+                    _all: true
+                }
+            }),
+            this.prisma.ticket.groupBy({
+                by: "category",
+                _count: {
+                    _all: true
+                },
+                where: {
+                    category: {
+                        not: null
+                    }
+                }
+            }),
+            this.prisma.ticket.findMany({
+                where: {
+                    status: TicketStatus.RESOLVED,
+                },
+                select: {
+                    createdAt: true,
+                    resolvedAt: true,
+                    aiCategory: true,
+                    category: true
+                }
+            }),
+        ]);
+        const byStatus = Object.fromEntries(ticketsByStatus.map(i => [i.status, i._count._all]));
+        const byCategory = Object.fromEntries(ticketsByCategory.map(i => [i.category, i._count._all]));
+
+        const aiCategoryClasifiedTicket = resolvedTickets.filter(t => t.aiCategory !== null);
+        const aiOverrideCategoryPercentage = aiCategoryClasifiedTicket.length === 0 ? 0
+            : (aiCategoryClasifiedTicket.filter(t => t.category !== t.aiCategory).length
+                / aiCategoryClasifiedTicket.length * 100).toFixed(2) + '%';
+
+        const timesSorted = resolvedTickets.map(t => t.resolvedAt!.getTime() - t.createdAt.getTime()).sort((a, b) => a - b);
+        const timeMs = timesSorted.length === 0 ? 0
+            : (timesSorted.length % 2 === 0) ? (timesSorted[(timesSorted.length / 2) - 1] + timesSorted[(timesSorted.length / 2)]) / 2
+                : timesSorted[Math.floor(timesSorted.length / 2)];
+        const hours = Math.floor(timeMs / (1000 * 60 * 60));
+        const mins = Math.floor((timeMs % (1000 * 60 * 60)) / (1000 * 60));
+        return {
+            byStatus,
+            byCategory,
+            medianResolutionTime: `${hours}h ${mins}m`,
+            aiOverrideCategoryPercentage
+        };
+    }
     private async processTicketAI(ticketId: string, title: string, description: string) {
         try {
-            const { category, priority } = await this.geminiService.analyzeTicket(title, description);
-            this.logger.log(`Ticket ${ticketId} processed with AI. Category: ${category}, Priority: ${priority}`);
+            const [{ category, priority }, { draftReply, citations }] = await Promise.all([
+                await this.geminiService.analyzeTicket(title, description),
+                await this.ragService.generateDraftReply(title, description)
+            ])
             await this.prisma.ticket.update({
                 where: { id: ticketId },
                 data: {
                     aiCategory: category,
                     aiPriority: priority,
+                    aiDraftReply: draftReply,
+                    citations: citations
                 },
             });
+            this.logger.log(`Ticket ${title} and ${description} processed with AI. Category: ${category}, Priority: ${priority},reply: ${draftReply},citations: ${citations}`);
         } catch (error) {
             this.logger.error(`Failed to process ticket ${ticketId} with AI`, error);
         } finally {

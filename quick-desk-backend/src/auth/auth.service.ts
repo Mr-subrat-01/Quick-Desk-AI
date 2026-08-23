@@ -1,31 +1,21 @@
 import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { LoginDto } from './dtos/login.dto';
-
-function parseDevicePlatform(ua?: string | null): string {
-  if (!ua) return 'Unknown Device';
-  const cleanUA = ua.toLowerCase();
-  const browser = ['edg/', 'firefox/', 'chrome/', 'safari/'].find(b => cleanUA.includes(b)) || 'browser/';
-  const os = ['android', 'iphone', 'ipad', 'win', 'mac', 'linux'].find(o => cleanUA.includes(o)) || 'device';
-  const names: Record<string, string> = {
-    'edg/': 'Edge', 'firefox/': 'Firefox', 'chrome/': 'Chrome', 'safari/': 'Safari', 'browser/': 'Browser',
-    'win': 'Windows', 'mac': 'macOS', 'linux': 'Linux', 'android': 'Android', 'iphone': 'iOS', 'ipad': 'iOS', 'device': 'Device'
-  };
-  return `${names[browser]} on ${names[os]}`;
-}
-
+import type { Response } from 'express';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) { }
 
-  async signIn(loginDto: LoginDto, userAgent?: string, ipAddress?: string) {
+  async signIn(loginDto: LoginDto, res: Response) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
     });
@@ -40,25 +30,20 @@ export class AuthService {
     }
 
     const payload = { id: user.id, sub: user.id, email: user.email, role: user.role };
-    const accessToken = this.jwtService.sign(payload);
+    const accessToken = await this.jwtService.signAsync(payload);
 
-    const refreshTokenString = randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    const { refreshToken, refreshTokenExpireAt } = this.generateRefreshToken();
 
-    const refreshTokenRecord = await this.prisma.refreshToken.create({
+    await this.prisma.user.update({
+      where: { id: user.id },
       data: {
-        token: refreshTokenString,
-        userId: user.id,
-        userAgent: parseDevicePlatform(userAgent),
-        ipAddress: ipAddress || '127.0.0.1',
-        expiresAt,
+        refreshToken,
+        refreshTokenExpireAt,
       },
     });
-
+    this.setRefreshTokenCookie(res, refreshToken);
     return {
       accessToken,
-      refreshToken: refreshTokenRecord.token,
       user: {
         id: user.id,
         email: user.email,
@@ -69,47 +54,35 @@ export class AuthService {
     };
   }
 
-  async refreshToken(refreshTokenString: string, userAgent?: string, ipAddress?: string) {
-    if (!refreshTokenString) {
+  async refreshTokenAsync(refreshToken: string, res: Response) {
+    if (!refreshToken) {
       throw new UnauthorizedException('No refresh token provided');
     }
-
-    const tokenRecord = await this.prisma.refreshToken.findUnique({
-      where: { token: refreshTokenString },
-      include: { user: true },
+    const userRecord = await this.prisma.user.findFirst({
+      where: { refreshToken },
     });
-
-    if (!tokenRecord || tokenRecord.isRevoked || new Date() > tokenRecord.expiresAt) {
+    if (!userRecord || !userRecord.refreshToken || !userRecord.refreshTokenExpireAt || new Date() > userRecord.refreshTokenExpireAt) {
       throw new UnauthorizedException('Refresh token is invalid or expired');
     }
-
-    const newRefreshTokenString = randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    const updatedRecord = await this.prisma.refreshToken.update({
-      where: { id: tokenRecord.id },
+    const { refreshToken: newRefreshToken, refreshTokenExpireAt } = this.generateRefreshToken();
+    await this.prisma.user.update({
+      where: { id: userRecord.id },
       data: {
-        token: newRefreshTokenString,
-        userAgent: parseDevicePlatform(userAgent || tokenRecord.userAgent),
-        ipAddress: ipAddress || tokenRecord.ipAddress,
-        expiresAt,
+        refreshToken: newRefreshToken,
+        refreshTokenExpireAt,
       },
     });
-
-    const user = tokenRecord.user;
-    const payload = { id: user.id, sub: user.id, email: user.email, role: user.role };
-    const accessToken = this.jwtService.sign(payload);
-
+    this.setRefreshTokenCookie(res, newRefreshToken);
+    const payload = { id: userRecord.id, sub: userRecord.id, email: userRecord.email, role: userRecord.role };
+    const accessToken = await this.jwtService.signAsync(payload);
     return {
       accessToken,
-      refreshToken: updatedRecord.token,
       user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
+        id: userRecord.id,
+        email: userRecord.email,
+        firstName: userRecord.firstName,
+        lastName: userRecord.lastName,
+        role: userRecord.role,
       },
     };
   }
@@ -126,75 +99,35 @@ export class AuthService {
         createdAt: true,
       },
     });
-
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     return user;
   }
 
-  async getActiveSessions(userId: string, currentToken?: string) {
-    const sessions = await this.prisma.refreshToken.findMany({
-      where: {
-        userId,
-        isRevoked: false,
-        expiresAt: { gt: new Date() },
-      },
-      select: {
-        id: true,
-        token: true,
-        userAgent: true,
-        ipAddress: true,
-        createdAt: true,
-        updatedAt: true,
-        expiresAt: true,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-
-    return sessions.map((s) => ({
-      id: s.id,
-      userAgent: s.userAgent,
-      ipAddress: s.ipAddress,
-      createdAt: s.createdAt,
-      updatedAt: s.updatedAt,
-      isCurrent: currentToken ? s.token === currentToken : false,
-    }));
-  }
-
-  async revokeSession(userId: string, sessionId: string, currentToken?: string) {
-    const session = await this.prisma.refreshToken.findFirst({
-      where: { id: sessionId, userId },
-    });
-
-    if (!session) {
-      throw new NotFoundException('Session not found');
-    }
-
-    await this.prisma.refreshToken.update({
-      where: { id: sessionId },
-      data: { isRevoked: true },
-    });
-
-    const isCurrentSession = currentToken ? session.token === currentToken : false;
-
-    return { isCurrentSession };
-  }
-
-  async logoutAllSessions(userId: string) {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, isRevoked: false },
-      data: { isRevoked: true },
+  async logout(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null, refreshTokenExpireAt: null },
     });
   }
 
-  async logout(refreshTokenString?: string) {
-    if (refreshTokenString) {
-      await this.prisma.refreshToken.updateMany({
-        where: { token: refreshTokenString },
-        data: { isRevoked: true },
-      });
-    }
+  private generateRefreshToken() {
+    const refreshToken = randomBytes(32).toString('hex');
+    const refreshTokenDays = Number(this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN_DAYS'));
+    const refreshTokenExpireAt = new Date();
+    refreshTokenExpireAt.setDate(refreshTokenExpireAt.getDate() + refreshTokenDays);
+    return { refreshToken, refreshTokenExpireAt };
+  }
+
+  private setRefreshTokenCookie(res: Response, token: string) {
+    const refreshTokenDays = Number(this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN_DAYS'));
+    const refreshDuration = refreshTokenDays * 24 * 60 * 60 * 1000;
+    res.cookie('refreshToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: refreshDuration,
+    });
   }
 }

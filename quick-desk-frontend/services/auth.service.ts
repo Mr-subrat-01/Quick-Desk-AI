@@ -1,7 +1,5 @@
 import { fetchApi, setAccessToken } from '../lib/api';
-import { LoginPayload, SessionItem, UserProfile } from '@/types';
-
-export type { LoginPayload, SessionItem, UserProfile };
+import { LoginPayload, UserProfile } from '@/types';
 
 let getProfilePromise: Promise<UserProfile> | null = null;
 
@@ -37,25 +35,6 @@ export const AuthService = {
         });
     }
     return getProfilePromise;
-  },
-
-  async getSessions(): Promise<SessionItem[]> {
-    const res = await fetchApi('/auth/sessions');
-    return res.data || [];
-  },
-
-  async revokeSession(sessionId: string) {
-    const res = await fetchApi(`/auth/sessions/${sessionId}`, { method: 'DELETE' });
-    return res;
-  },
-
-  async logoutAll() {
-    const res = await fetchApi('/auth/logout-all', { method: 'POST' });
-    setAccessToken(null);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('is_logged_in', 'false');
-    }
-    return res;
   },
 
   async logout() {

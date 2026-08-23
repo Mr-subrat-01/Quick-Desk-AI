@@ -62,7 +62,6 @@ export default function EmployeeDashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    socket.emit('join:employee', { employeeId: user.id });
 
     const handleTicketResolved = (data: { ticketId: string; title: string }) => {
       toast.success('Ticket Resolved', {

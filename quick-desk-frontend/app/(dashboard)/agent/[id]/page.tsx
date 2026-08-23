@@ -303,7 +303,7 @@ export default function TicketDetailsPage() {
                 <div className="space-y-4 text-xs">
                   <div className="space-y-1">
                     <span className="text-slate-400 uppercase font-semibold text-[10px]">
-                      Final Resolution Response
+                      Final Reply
                     </span>
                     <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-4 text-emerald-100 whitespace-pre-wrap leading-relaxed">
                       {ticket.reply}

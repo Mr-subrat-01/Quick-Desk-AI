@@ -22,7 +22,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Monitor } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 export function Navbar({ user, onLogout }: NavbarProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -85,15 +85,6 @@ export function Navbar({ user, onLogout }: NavbarProps) {
                     <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                   </div>
                 </div>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem className="p-0">
-                  <Link href="/sessions" className="flex items-center gap-2 w-full px-2 py-1.5 cursor-pointer">
-                    <Monitor className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>Active Sessions</span>
-                  </Link>
-                </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 

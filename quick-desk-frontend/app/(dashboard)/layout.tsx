@@ -17,15 +17,27 @@ export default function DashboardLayout({
   const { user, loading, logout } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      if (!socket.connected) {
-        socket.connect();
-      }
+    if (!user) return;
+
+    if (!socket.connected) {
+      socket.connect();
     }
+    const joinRoom = () => {
+      if (user.role === 'AGENT') {
+        socket.emit('join:agents');
+      } else {
+        socket.emit('join:employee', { employeeId: user.id });
+      }
+    };
+    if (socket.connected) {
+      joinRoom();
+    }
+    socket.on('connect', joinRoom);
     return () => {
+      socket.off('connect', joinRoom);
       socket.disconnect();
     };
-  }, [user]);
+  }, [user?.id, user?.role]);
 
   const isWrongRole = user && (
     (pathname.startsWith('/agent') && user.role !== 'AGENT') ||

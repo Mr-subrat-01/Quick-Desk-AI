@@ -79,8 +79,6 @@ export default function AgentDashboardPage() {
   }, [statusFilter, categoryFilter, priorityFilter, debouncedSearch, fetchTickets]);
 
   useEffect(() => {
-    socket.emit('join:agents');
-
     const handleTicketRaised = (data: { ticketId: string; title: string }) => {
       toast.info('New Ticket Raised', {
         description: <span>Ticket <b className="font-semibold text-slate-100">{data.title}</b> was raised.</span>,

@@ -29,12 +29,12 @@ export const TicketService = {
 
     const queryString = query.toString() ? `?${query.toString()}` : '';
     const res = await fetchApi(`/ticket${queryString}`);
-    return res.data || res;
+    return res.data;
   },
 
   async getTicketById(id: string): Promise<Ticket> {
-    const res = await fetchApi(`/ticket/${id}`);
-    return res.data || res;
+    const ticket = await fetchApi(`/ticket/${id}`);
+    return ticket.data;
   },
 
   async resolveTicket(id: string, payload: ResolveTicketPayload): Promise<Ticket> {
@@ -49,4 +49,7 @@ export const TicketService = {
     });
     return res;
   },
+  async getTicketMetrics() {
+    return await fetchApi(`/ticket/metrics`);
+  }
 };

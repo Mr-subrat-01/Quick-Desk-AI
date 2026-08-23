@@ -16,30 +16,16 @@ model User {
   role String @default("EMPLOYEE")
   email String @unique
   password String
+  refreshToken String?
+  refreshTokenExpireAt DateTime?
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
   employeeTickets Ticket[]   @relation("EmployeeTickets")
   agentTickets    Ticket[]   @relation("AgentTickets")
   auditLogs       AuditLog[]
-  refreshTokens   RefreshToken[]
 
   @@map("users")
 }
-
-model RefreshToken {
-  id String @id @default(uuid())
-  token String @unique
-  userId String
-  userAgent String?
-  ipAddress String?
-  isRevoked Boolean @default(false)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("refresh_tokens")
-}
-
 
 model Ticket {
   id String @id @default(uuid())

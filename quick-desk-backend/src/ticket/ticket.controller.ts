@@ -69,6 +69,13 @@ export class TicketController {
     );
   }
 
+  @Get('metrics')
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.AGENT)
+  async getMetrics() {
+    return this.ticketService.getTicketMetrics();
+  }
+
   @Get(':id')
   async getTicketById(
     @Param('id') id: string,
