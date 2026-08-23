@@ -11,7 +11,7 @@ import {
   SheetTitle,
   SheetFooter,
 } from '@/components/ui/sheet';
-import { Clock, CheckCircle2, User, MessageSquare, AlertCircle, Paperclip, FileText } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 interface TicketDetailModalProps {
   ticket: Ticket | null;
@@ -22,7 +22,6 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
   const isOpen = !!ticket;
   if (!ticket) return null;
 
-  const isResolved = ticket.status === 'RESOLVED';
 
   return (
     <Sheet open={isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
@@ -31,11 +30,6 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className={getStatusBadgeClass(ticket.status)}>
-                {isResolved ? (
-                  <CheckCircle2 className="w-3 h-3 mr-1 inline" />
-                ) : (
-                  <Clock className="w-3 h-3 mr-1 inline" />
-                )}
                 {ticket.status}
               </Badge>
 
@@ -51,20 +45,15 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
                 </Badge>
               )}
             </div>
-            <SheetTitle className="text-lg font-bold text-white leading-snug">{ticket.title}</SheetTitle>
+            <SheetTitle className="text-lg font-bold text-white leading-snug">
+              {ticket.title} 
+              <br />
+              <span className="text-[10px] text-slate-400">Created: {new Date(ticket.createdAt).toLocaleString()}</span>
+            </SheetTitle>
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-700/60 [&::-webkit-scrollbar-thumb]:rounded-full">
-          <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-3">
-            <span>Created: {new Date(ticket.createdAt).toLocaleString()}</span>
-            {ticket.employee && (
-              <span className="flex items-center gap-1">
-                <User className="w-3 h-3" /> {ticket.employee.firstName} {ticket.employee.lastName}
-              </span>
-            )}
-          </div>
-
+        <div className="flex-1 overflow-y-auto px-6 space-y-5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-700/60 [&::-webkit-scrollbar-thumb]:rounded-full">
           <div className="space-y-2">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Description</h3>
             <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
@@ -75,12 +64,11 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
           {ticket.attachments && ticket.attachments.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Paperclip className="w-3.5 h-3.5 text-indigo-400" /> Attachments
+                Attachments
               </h3>
               <div className="flex flex-wrap gap-2">
                 {ticket.attachments.map((fileName, idx) => (
                   <Badge key={idx} className="bg-slate-800/90 text-slate-200 border-slate-700 text-xs py-1 px-2.5 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-indigo-400" />
                     <span>{fileName}</span>
                   </Badge>
                 ))}
@@ -92,7 +80,7 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <MessageSquare className="w-4 h-4" /> Resolution Response
+                  Resolution Response
                 </h3>
                 {ticket.agent && (
                   <span className="text-xs text-slate-400">
@@ -107,7 +95,7 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
           ) : (
             <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 flex items-center gap-3 text-slate-400 text-xs">
               <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
-              <span>Support agent is reviewing your request. You will be notified once a resolution is submitted.</span>
+              <span>Support agent is reviewing your request</span>
             </div>
           )}
         </div>

@@ -6,7 +6,10 @@ CREATE TABLE "users" (
     "role" TEXT NOT NULL DEFAULT 'EMPLOYEE',
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
+    "refreshToken" TEXT,
+    "refreshTokenExpireAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -16,7 +19,7 @@ CREATE TABLE "tickets" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
     "aiPriority" TEXT,
     "aiCategory" TEXT,
     "aiDraftReply" TEXT,
@@ -29,6 +32,7 @@ CREATE TABLE "tickets" (
     "citations" TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "resolvedAt" TIMESTAMP(3),
 
     CONSTRAINT "tickets_pkey" PRIMARY KEY ("id")
 );

@@ -1,4 +1,5 @@
 import { fetchApi } from '../lib/api';
+import { socket } from '@/lib/socket';
 import {
   CreateTicketPayload,
   GetTicketsQueryParams,
@@ -18,8 +19,8 @@ export const TicketService = {
 
   async getTickets(params: GetTicketsQueryParams = {}): Promise<GetTicketsResponse> {
     const query = new URLSearchParams();
-    if (params.take) query.set('take', params.take.toString());
-    if (params.lastSeenId) query.set('lastSeenId', params.lastSeenId);
+    if (params.page) query.set('page', params.page.toString());
+    if (params.limit) query.set('limit', params.limit.toString());
     if (params.status) query.set('status', params.status);
     if (params.category) query.set('category', params.category);
     if (params.priority) query.set('priority', params.priority);
@@ -28,19 +29,27 @@ export const TicketService = {
 
     const queryString = query.toString() ? `?${query.toString()}` : '';
     const res = await fetchApi(`/ticket${queryString}`);
-    return res.data || res;
+    return res.data;
   },
 
   async getTicketById(id: string): Promise<Ticket> {
-    const res = await fetchApi(`/ticket/${id}`);
-    return res.data || res;
+    const ticket = await fetchApi(`/ticket/${id}`);
+    return ticket.data;
   },
 
   async resolveTicket(id: string, payload: ResolveTicketPayload): Promise<Ticket> {
+    const headers: Record<string, string> = {};
+    if (socket?.id) {
+      headers['x-socket-id'] = socket.id;
+    }
     const res = await fetchApi(`/ticket/${id}/resolve`, {
       method: 'PATCH',
+      headers,
       body: JSON.stringify(payload),
     });
-    return res.data || res;
+    return res;
   },
+  async getTicketMetrics() {
+    return await fetchApi(`/ticket/metrics`);
+  }
 };

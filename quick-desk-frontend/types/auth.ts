@@ -3,15 +3,6 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface SessionItem {
-  id: string;
-  userAgent: string;
-  ipAddress: string;
-  createdAt: string;
-  updatedAt?: string;
-  isCurrent?: boolean;
-}
-
 export interface UserProfile {
   id: string;
   email: string;

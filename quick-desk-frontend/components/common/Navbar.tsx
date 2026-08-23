@@ -22,7 +22,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Monitor } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 export function Navbar({ user, onLogout }: NavbarProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -31,22 +31,24 @@ export function Navbar({ user, onLogout }: NavbarProps) {
     ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U'
     : 'U';
 
+  const logoHref = user
+    ? (user.role === 'AGENT' ? '/agent' : '/employee')
+    : '/login';
+
   return (
     <>
       <header className="h-16 border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-40 px-6 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-md">
-              QD
-            </div>
-            <span className="font-bold text-foreground text-base tracking-tight">QuickDesk AI</span>
+          <Link href={logoHref} className="flex items-center gap-2">
+            <img src="/logo.png" alt="QuickDesk Logo" className="w-8 h-8 object-contain rounded-lg shadow-md" />
+            <span className="font-bold text-foreground text-base tracking-tight">QuickDesk</span>
           </Link>
 
           {user && (
             <nav className="hidden md:flex items-center gap-4 text-xs font-medium text-muted-foreground">
               {user.role === 'AGENT' && (
                 <>
-                  <Link href="/agent/dashboard" className="hover:text-primary transition-colors">
+                  <Link href="/agent" className="hover:text-primary transition-colors">
                     Agent Dashboard
                   </Link>
                   <Link href="/agent/metrics" className="hover:text-primary transition-colors">
@@ -83,15 +85,6 @@ export function Navbar({ user, onLogout }: NavbarProps) {
                     <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                   </div>
                 </div>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem className="p-0">
-                  <Link href="/sessions" className="flex items-center gap-2 w-full px-2 py-1.5 cursor-pointer">
-                    <Monitor className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>Active Sessions</span>
-                  </Link>
-                </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 
