@@ -33,7 +33,7 @@ export function LoginForm() {
         }
       }
     } catch (err: any) {
-      toast.error(err.message || 'Login failed');
+      toast.error(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }

@@ -10,13 +10,22 @@ export function useAuth() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
 
   useEffect(() => {
     AuthService.getProfile()
-      .then((data) => setUser(data))
-      .catch(() => {
-        setUser(null);
-        router.push('/login');
+      .then((data) => {
+        setUser(data);
+        setError(null);
+      })
+      .catch((err) => {
+        if ((err as any).status === 401) {
+          setUser(null);
+          router.push('/login');
+        } else {
+          setError(err);
+          toast.error(err.message || 'An error occurred during authentication');
+        }
       })
       .finally(() => setLoading(false));
   }, [router]);
@@ -30,5 +39,5 @@ export function useAuth() {
     router.push('/login');
   };
 
-  return { user, loading, logout };
+  return { user, loading, error, logout };
 }

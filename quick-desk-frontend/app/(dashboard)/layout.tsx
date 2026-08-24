@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Navbar } from '@/components/common/Navbar';
 import { FullPageLoader } from '@/components/common/Loader';
 import { socket } from '@/lib/socket';
+import { Button } from '@/components/ui/button';
 
 export default function DashboardLayout({
   children,
@@ -14,7 +15,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, logout } = useAuth();
+  const { user, loading, error, logout } = useAuth();
 
   useEffect(() => {
     if (!user) return;
@@ -53,6 +54,17 @@ export default function DashboardLayout({
 
   if (loading || isWrongRole) {
     return <FullPageLoader />;
+  }
+
+  if (error && !user) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <p className="text-sm text-slate-400">
+          {error.message || 'We encountered an issue checking your session.'}
+        </p>
+        <Button onClick={() => window.location.reload()} size="sm">Retry Connection</Button>
+      </div>
+    );
   }
 
   if (!user) {

@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 let inMemoryAccessToken: string | null = null;
@@ -37,7 +39,12 @@ function redirectToLogin() {
   }
 }
 
-export async function fetchApi(endpoint: string, options: RequestInit = {}, retryOn401 = true): Promise<any> {
+export async function fetchApi(
+  endpoint: string,
+  options: RequestInit = {},
+  retryOn401 = true,
+  skipGlobalToast = false
+): Promise<any> {
   let response = await makeRequest(endpoint, options);
 
   if (response.status === 401 && retryOn401 && endpoint !== '/auth/login' && endpoint !== '/auth/refresh') {
@@ -47,29 +54,40 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}, retr
       });
       if (!refreshResponse.ok) {
         redirectToLogin();
-        throw new Error('Session expired. Please login again.');
+        const error = new Error('Session expired. Please login again.');
+        (error as any).status = 401;
+        throw error;
       }
       const refreshData = await refreshResponse.json();
       const newAccessToken = refreshData.data?.accessToken;
       if (!newAccessToken) {
         redirectToLogin();
-        throw new Error('Failed to refresh access token.');
+        const error = new Error('Failed to refresh access token.');
+        (error as any).status = 401;
+        throw error;
       }
       setAccessToken(newAccessToken);
       response = await makeRequest(endpoint, options, newAccessToken);
     } catch (error) {
-      if (error instanceof Error && (error.message === 'Session expired. Please login again.' || error.message === 'Failed to refresh access token.')) {
+      if (error instanceof Error && ((error as any).status === 401)) {
         throw error;
       }
       redirectToLogin();
-      throw new Error('Failed to authenticate please login again');
+      const err = new Error('Failed to authenticate please login again');
+      (err as any).status = 401;
+      throw err;
     }
 
   }
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || 'API request failed');
+    const error = new Error(data.message || 'API request failed');
+    (error as any).status = response.status;
+    if (response.status !== 401 && !skipGlobalToast) {
+      toast.error(error.message);
+    }
+    throw error;
   }
 
   return data;

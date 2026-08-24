@@ -11,7 +11,6 @@ import { TicketDetailModal } from '@/components/tickets/ticket-detail-modal';
 import { Loader } from '@/components/common/Loader';
 import { getStatusBadgeClass, getPriorityBadgeClass } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
 import { socket } from '@/lib/socket';
 import {
   Plus,
@@ -21,7 +20,6 @@ import {
 } from 'lucide-react';
 
 export default function EmployeeDashboardPage() {
-  const { user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage] = useState<number>(1);
@@ -49,7 +47,6 @@ export default function EmployeeDashboardPage() {
       setHasNextPage(res.hasNextPage);
       setHasPreviousPage(res.hasPreviousPage);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to fetch tickets');
     } finally {
       setIsLoading(false);
     }
@@ -61,8 +58,6 @@ export default function EmployeeDashboardPage() {
   }, [statusFilter, fetchTickets]);
 
   useEffect(() => {
-    if (!user) return;
-
     const handleTicketResolved = (data: { ticketId: string; title: string }) => {
       toast.success('Ticket Resolved', {
         description: <span>Your ticket <b className="font-semibold text-slate-100">{data.title}</b> has been resolved.</span>,
@@ -95,7 +90,7 @@ export default function EmployeeDashboardPage() {
     return () => {
       socket.off('ticket:resolved', handleTicketResolved);
     };
-  }, [statusFilter, fetchTickets, page, user]);
+  }, [statusFilter, fetchTickets, page]);
 
   const handleFilterChange = (status: string) => {
     setStatusFilter(status);

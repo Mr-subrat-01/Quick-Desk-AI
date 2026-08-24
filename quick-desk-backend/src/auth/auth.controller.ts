@@ -37,12 +37,9 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async refresh(@Req() req: Request) {
     const refreshToken = req.cookies?.refreshToken;
-    return this.authService.refreshTokenAsync(refreshToken, res);
+    return this.authService.refreshTokenAsync(refreshToken);
   }
 
   @Get('me')

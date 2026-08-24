@@ -65,7 +65,6 @@ export default function AgentDashboardPage() {
         setHasNextPage(res.hasNextPage);
         setHasPreviousPage(res.hasPreviousPage);
       } catch (err: any) {
-        toast.error(err.message || 'Failed to fetch tickets');
       } finally {
         setIsLoading(false);
       }

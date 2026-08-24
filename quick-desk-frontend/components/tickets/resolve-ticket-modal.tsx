@@ -67,7 +67,6 @@ export function ResolveTicketModal({ ticket, onClose, onSuccess }: ResolveTicket
       onSuccess();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to resolve ticket');
     } finally {
       setIsLoading(false);
     }

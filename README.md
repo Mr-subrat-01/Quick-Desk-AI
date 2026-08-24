@@ -21,23 +21,29 @@ A simple internal helpdesk web app where employees can submit support tickets, a
 ---
 
 ## How to run it locally
-
-Run the command inside the root folder it will spin up all frontend,backend and database
-```bash
-docker compose up
-```
-* **Frontend**: [http://localhost:4000](http://localhost:4000)
-* **Backend API**: [http://localhost:5001](http://localhost:5001)
+1. **Install Docker Desktop**: Ensure Docker is installed and running.
+2. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Mr-subrat-01/Quick-Desk-AI.git
+   cd Quick-Desk-AI
+   ```
+3. **Configure Environment Variables**: Create a `.env` file in the root directory and copy the contents from `.env.example`, filling in your local configuration values.
+4. **Start the application**: Run the following command inside the root directory to spin up the frontend, backend, and database containers:
+   ```bash
+   docker compose up
+   ```
+5. **Verify containers**: Wait until all containers are running successfully.
+   * **Frontend**: [http://localhost:4000](http://localhost:4000)
+   * **Backend API**: [http://localhost:5001](http://localhost:5001)
 
 ---
 
 ## Pre-seeded Demo Accounts
-* **Agent Account**: `agent@gmail.com` | Password: `123456`
+* **Agent Account**: `agent@gmail.com` | Password: `123456` 
 * **Employee Account**: `emp@gmail.com` | Password: `123456`
 
-if you want more users i already seeded some more users you can findout in this file 
-
-* **Quik-Desk-AI\quick-desk-backend\prisma\seed.ts**
+Additional pre-seeded users can be found in the database seed file:
+* `quick-desk-backend/prisma/seed.ts`
 
 ---
 
@@ -46,7 +52,7 @@ if you want more users i already seeded some more users you can findout in this 
 | Method | Path | Purpose | Auth Required | Roles Allowed |
 |:---|:---|:---|:---:|:---|
 | `POST` | `/api/auth/login` | Login user, set HttpOnly Refresh Cookie, return Access Token | No | All |
-| `POST` | `/api/auth/refresh` | Verify HttpOnly Refresh Cookie, rotate and return new Access Token | No (Cookie) | All |
+| `POST` | `/api/auth/refresh` | Verify HttpOnly Refresh Cookie and return new Access Token | No (Cookie) | All |
 | `POST` | `/api/auth/logout` | Clear Refresh Token from DB and clear cookie | Yes | All |
 | `GET` | `/api/auth/me` | Fetch current user's profile | Yes | All |
 | `POST` | `/api/ticket` | Create a new ticket | Yes | `EMPLOYEE` |
@@ -79,22 +85,60 @@ The long-lived refreshToken is stored in a secure HttpOnly cookie set by the bac
 I also store a simple is_logged_in flag in localStorage as a UI hint. It does not contain any token or sensitive authentication data and is only used to determine whether the application should attempt authentication-related requests after a page reload or logout.
 
 ### e) How did you enforce role-based access on the backend? What stops an employee from hitting an agent-only endpoint by guessing the URL?
-I used NestJS Guards. Every API call goes through a `JwtAuthGuard` and a `RolesGuard`. The guard reads the user's role from the validated JWT token. If an employee tries to access an agent-only API endpoint (like metrics or resolve ticket), the guard blocks them and returns a `403 Forbidden` response.
-"statusCode":403,"message":"Access denied: Insufficient permissions"
+I used NestJS JwtAuthGuard and RolesGuard. The JwtAuthGuard verifies the JWT, and the RolesGuard checks the user's role. If an employee tries to access an agent endpoint, the backend returns `{"statusCode": 403, "message": "Access denied: Insufficient permissions"}`.
+
 
 ### f) Why did you pick Socket.io / WebSockets / SSE for real-time? What is the failure mode if the socket disconnects mid-session?
 I chose Socket.io because it handles connection status and rooms automatically. 
-* **Failure Mode**: If a user disconnects (like if they lose internet), the app keeps showing the last loaded tickets. Socket.io will try to reconnect in the background. Once reconnected, layout-level hooks automatically call `join:agents` or `join:employee` again to restore the real-time rooms.
+* **Failure Mode**: If a user disconnects (like if they lose internet), the app keeps showing the last loaded tickets. Socket.io will try to reconnect in the background. Once connection restored, layout-level hooks automatically call `join:agents` or `join:employee` again to restore the realtime rooms.
 
 ### g) What is the worst failure mode in your system today, and what would you do to address it?
-The worst failure mode is that the document embeddings are stored in the server's RAM (`MemoryVectorStore`). If the NestJS backend restarts, all embeddings are lost, and we have to reload and re-embed all files. If the server restarts frequently, we might hit the free-tier limit of the Gemini API. To fix this, I would use a real vector database like PostgreSQL `pgvector` to store the embeddings permanently.
+The biggest failure mode is that the document embeddings are stored in server RAM using MemoryVectorStore. If the NestJS server restarts, all embeddings are lost and the knowledge base files need to be re-embedded. Frequent restarts will affect Gemini API usage and could hit the free-tier limit.
+I know this can be addressed by using a persistent vector database such as PostgreSQL with pgvector or ChromaDB, but I did not implement it because MemoryVectorStore was sufficient for the scope of this assessment.
 
 ### h) Where did AI tools help you most? Where did they hurt or mislead you?
 * **Helped**: AI tools helped me quickly generate TypeScript types, database seed files, and styling layouts for UI cards.
-* **Hurt/Misled**: The AI suggested using the `gemini-embedding-2` model for embeddings. This model doesn't support batching in LangChain and returned empty arrays silently, which took me a lot of time to debug.
-
+* **Hurt/Misled**: The AI suggested using the `gemini-embedding-2` model for embeddings. Currently this model doesn't support batching in LangChain and returned empty arrays silently, which took me a lot of time to debug.
+ 
 ---
 
+## Environment Variables
+```ini
+NODE_ENV=development
+# port mapping
+FRONTEND_PORT=4000
+BACKEND_PORT=5001
+# api
+BACKEND_API_URL="http://localhost:${BACKEND_PORT}/api"
+
+# database config
+DB_HOST=postgres
+DB_PORT=5432
+POSTGRES_USER=db_username
+POSTGRES_PASSWORD=db_password
+DB_NAME=quickdesk
+DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public"
+
+# jwt config
+JWT_SECRET=jwt_secret_key
+JWT_ACCESS_TOKEN_EXPIRES_MIN=15
+REFRESH_TOKEN_EXPIRES_IN_DAYS=7
+
+# rate limit for employe ticket create
+TICKET_LIMIT_PER_HOUR=20
+
+#API KEY
+GEMINI_API_KEY=
+GEMINI_CHAT_MODEL=gemini-3.5-flash-lite
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+```
+
+## What I Would Do With More Time
+- Replace MemoryVectorStore with pgvector for persistent embeddings
+- Add BullMQ for reliable background AI processing with retry logic
+- Add email notifications when ticket resolved and raised
+
 ## Known Issues / Limitations
-* **RAM Vector Store**: Embeddings are stored in-memory and lost when the server restarts.
-* **Gemini Free Tier**: We are limited to 1,000 free requests per day, so too many test runs might block the API key.
+* **In-Memory Vector Store**: Embeddings are stored in RAM (`MemoryVectorStore`) and are lost when the server restarts, requiring files to be re-embedded on startup.
+* **JWT revocation window**: revoked users retain API access until access token expires (15 mins max)
+* **Socket**: Socket reconnection restores rooms but may miss events that occurred during disconnect
