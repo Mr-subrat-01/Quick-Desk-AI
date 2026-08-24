@@ -29,7 +29,6 @@ export default function MetricsDashboard() {
       const res = await TicketService.getTicketMetrics();
       setMetrics(res.data || res);
     } catch (err: any) {
-      toast.error(err.message || "Failed to fetch metrics");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

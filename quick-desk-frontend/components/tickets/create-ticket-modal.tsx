@@ -80,7 +80,6 @@ export function CreateTicketModal({ isOpen, onClose, onSuccess }: CreateTicketMo
       onSuccess();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create ticket');
     } finally {
       setIsLoading(false);
     }

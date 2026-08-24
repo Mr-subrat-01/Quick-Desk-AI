@@ -21,14 +21,14 @@ export const AuthService = {
 
   getProfile(): Promise<UserProfile> {
     if (!getProfilePromise) {
-      getProfilePromise = fetchApi('/auth/me')
+      getProfilePromise = fetchApi('/auth/me', {}, true, true)
         .then((res) => {
           getProfilePromise = null;
           return res.data;
         })
         .catch((err) => {
           getProfilePromise = null;
-          if (typeof window !== 'undefined') {
+          if ((err as any).status === 401 && typeof window !== 'undefined') {
             localStorage.setItem('is_logged_in', 'false');
           }
           throw err;

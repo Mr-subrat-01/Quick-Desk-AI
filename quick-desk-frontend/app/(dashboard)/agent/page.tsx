@@ -50,7 +50,7 @@ export default function AgentDashboardPage() {
     ) => {
       try {
         const res = await TicketService.getTickets({
-          limit: 10,
+          limit: 15,
           status: status || undefined,
           category: category || undefined,
           priority: priority || undefined,
@@ -65,7 +65,6 @@ export default function AgentDashboardPage() {
         setHasNextPage(res.hasNextPage);
         setHasPreviousPage(res.hasPreviousPage);
       } catch (err: any) {
-        toast.error(err.message || 'Failed to fetch tickets');
       } finally {
         setIsLoading(false);
       }

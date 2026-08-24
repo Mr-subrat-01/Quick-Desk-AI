@@ -12,7 +12,8 @@ services:
       - .env
     command: sh -c "npm install && npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npm run start"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
   
   frontend:
     image: "node:24-alpine"
@@ -25,7 +26,7 @@ services:
       - frontend_node_modules:/app/node_modules
     environment:
       - NEXT_PUBLIC_BACKEND_URL=${BACKEND_API_URL}
-    command: sh -c "npm install && npm run dev -- -p ${FRONTEND_PORT:-4000}"
+    command: sh -c "npm install && npm run build && npm run start -- -p ${FRONTEND_PORT:-4000}"
     depends_on:
       - backend
 
@@ -40,6 +41,11 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

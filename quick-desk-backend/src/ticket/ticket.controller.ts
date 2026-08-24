@@ -42,7 +42,7 @@ export class TicketController {
   async getAllTickets(
     @CurrentUser() user: { id: string; role: string },
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(15), ParseIntPipe) limit: number,
     @Query('status') status?: string,
     @Query('category') category?: string,
     @Query('priority') priority?: string,
@@ -70,13 +70,13 @@ export class TicketController {
   }
 
   @Get('metrics')
-  @UseGuards(JwtAuthGuard)
   @Roles(UserRole.AGENT)
   async getMetrics() {
     return this.ticketService.getTicketMetrics();
   }
 
   @Get(':id')
+  @Roles(UserRole.AGENT)
   async getTicketById(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string },

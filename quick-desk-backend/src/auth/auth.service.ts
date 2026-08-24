@@ -54,7 +54,7 @@ export class AuthService {
     };
   }
 
-  async refreshTokenAsync(refreshToken: string, res: Response) {
+  async refreshTokenAsync(refreshToken: string) {
     if (!refreshToken) {
       throw new UnauthorizedException('No refresh token provided');
     }
@@ -64,15 +64,6 @@ export class AuthService {
     if (!userRecord || !userRecord.refreshToken || !userRecord.refreshTokenExpireAt || new Date() > userRecord.refreshTokenExpireAt) {
       throw new UnauthorizedException('Refresh token is invalid or expired');
     }
-    const { refreshToken: newRefreshToken, refreshTokenExpireAt } = this.generateRefreshToken();
-    await this.prisma.user.update({
-      where: { id: userRecord.id },
-      data: {
-        refreshToken: newRefreshToken,
-        refreshTokenExpireAt,
-      },
-    });
-    this.setRefreshTokenCookie(res, newRefreshToken);
     const payload = { id: userRecord.id, sub: userRecord.id, email: userRecord.email, role: userRecord.role };
     const accessToken = await this.jwtService.signAsync(payload);
     return {

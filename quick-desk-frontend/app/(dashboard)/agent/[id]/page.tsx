@@ -41,7 +41,6 @@ export default function TicketDetailsPage() {
       setPriority(data.priority || data.aiPriority || 'MEDIUM');
       setReply(data.reply || data.aiDraftReply || '');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to fetch ticket details');
       router.push('/agent');
     } finally {
       setIsLoading(false);
@@ -74,7 +73,6 @@ export default function TicketDetailsPage() {
       toast.success((res as any)?.message || 'Ticket resolved successfully');
       fetchTicket();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to resolve ticket');
     } finally {
       setIsSubmitting(false);
     }
@@ -380,7 +378,7 @@ export default function TicketDetailsPage() {
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader size="sm" /> Resolving...
+                        <Loader size="sm" /> Replying...
                       </>
                     ) : (
                       'Send Reply'

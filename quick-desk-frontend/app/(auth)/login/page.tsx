@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthService } from '@/services/auth.service';
 import { LoginForm } from '@/components/forms/LoginForm';
+import { toast } from 'sonner';
 
 import { FullPageLoader } from '@/components/common/Loader';
 
@@ -26,8 +27,11 @@ export default function LoginPage() {
           setChecking(false);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         setChecking(false);
+        if (err && (err as any).status !== 401) {
+          toast.error(err.message || 'An error occurred during authentication');
+        }
       });
   }, [router]);
 
