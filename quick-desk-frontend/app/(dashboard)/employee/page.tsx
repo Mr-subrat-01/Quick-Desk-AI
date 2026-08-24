@@ -37,7 +37,7 @@ export default function EmployeeDashboardPage() {
   const fetchTickets = useCallback(async (status: string, pageNum: number = 1) => {
     try {
       const res = await TicketService.getTickets({
-        limit: 10,
+        limit: 15,
         status: status || undefined,
         page: pageNum,
       });

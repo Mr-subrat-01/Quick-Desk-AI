@@ -9,8 +9,9 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
     const statusCode = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const exResponse = exception instanceof HttpException ? exception.getResponse() : null;
 
-    const message = typeof exResponse == 'object' && exResponse != null && 'message' in exResponse ?
-      exResponse.message : exception instanceof Error ? exception.message : 'Internal server error';
+    const message = statusCode === 429 ? 'Too many request, please try again later'
+      : typeof exResponse == 'object' && exResponse != null && 'message' in exResponse ?
+        exResponse.message : exception instanceof Error ? exception.message : 'Internal server error';
 
     response.status(statusCode).json({
       status: 'error',

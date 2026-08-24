@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTicketDto } from './dtos/create-ticket.dto';
 import { ResolveTicketDto } from './dtos/resolve-ticket.dto';
@@ -10,6 +10,7 @@ import { Prisma, Ticket } from '@prisma/client';
 import { GeminiService } from 'src/ai/gemini/gemini.service';
 import { TicketGateway } from './ticket.gateway';
 import { RagService } from 'src/ai/rag/rag.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class TicketService {
@@ -17,13 +18,14 @@ export class TicketService {
     constructor(private readonly prisma: PrismaService,
         private readonly geminiService: GeminiService,
         private readonly ticketGateway: TicketGateway,
-        private readonly ragService: RagService
+        private readonly ragService: RagService,
+        private readonly configService: ConfigService
     ) { }
 
     async getAllTicketsForEmployee(
         employeeId: string,
         page: number = 1,
-        limit: number = 10,
+        limit: number = 15,
         status?: string,
         orderBy: 'asc' | 'desc' = 'desc',
     ) {
@@ -75,7 +77,7 @@ export class TicketService {
 
     async getAllTicketsForAgents(
         page: number = 1,
-        limit: number = 10,
+        limit: number = 15,
         status?: string,
         category?: string,
         priority?: string,
@@ -211,6 +213,19 @@ export class TicketService {
         return ticket;
     }
     async createTicket(employeeId: string, dto: CreateTicketDto) {
+        const oneHourago = new Date(Date.now() - 60 * 60 * 1000);
+        const ticketsOneHourAgo = await this.prisma.ticket.count({
+            where: {
+                employeeId,
+                createdAt: {
+                    gte: oneHourago
+                }
+            }
+        });
+        const TICKET_LIMIT_PER_HOUR = this.configService.get<number>('TICKET_LIMIT_PER_HOUR') || 20;
+        if (ticketsOneHourAgo >= TICKET_LIMIT_PER_HOUR) {
+            throw new HttpException('Your ticket raise limit exceed.try after some time', HttpStatus.TOO_MANY_REQUESTS);
+        }
         const ticket = await this.prisma.ticket.create({
             data: {
                 title: dto.title,

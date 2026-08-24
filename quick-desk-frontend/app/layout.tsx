@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'QuickDesk - AI-Assisted Helpdesk',
-  description: 'Internal LLM-assisted support ticketing platform for enterprise employees and agents.',
+  description: 'Internal helpdesk app that uses an LLM to assist support agents',
 };
 
 export default function RootLayout({
